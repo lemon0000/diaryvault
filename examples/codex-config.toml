@@ -1,0 +1,6 @@
+[mcp_servers.diaryvault]
+command = 'C:\path\to\Diary\.venv\Scripts\python.exe'
+args = ['-m', 'diaryvault', 'mcp', '--vault', 'C:\path\to\Diary\DiaryVault']
+cwd = 'C:\path\to\Diary'
+startup_timeout_sec = 20
+tool_timeout_sec = 60

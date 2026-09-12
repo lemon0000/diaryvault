@@ -1,0 +1,27 @@
+# Python / build cache
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local project state
+/DiaryVault/
+.secrets/
+.tools/
+.specstory/
+.vscode/
+.codex/
+
+# Logs and local env files
+*.log
+.env
+.env.*
+!.env.example
+
+# Databases and local backups
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
