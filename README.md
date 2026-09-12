@@ -4,7 +4,7 @@ DiaryVault 是一个面向“你记（Nideriji）”的本地优先日记归档�
 
 “你记”官网：[https://nideriji.cn/w/](https://nideriji.cn/w/)
 
-> DiaryVault 是个人/社区辅助项目，不是“你记”的官方项目，也不替代“你记”官网或客户端。它只处理用户自己授权导出或同步到本机的数据。
+> DiaryVault 是个人维护的社区开源项目，不是“你记”的官方项目。它只处理用户自己授权同步、导出或导入到本机的数据。
 
 ## 项目目标
 
@@ -17,13 +17,24 @@ DiaryVault 是一个面向“你记（Nideriji）”的本地优先日记归档�
 
 ## 当前状态
 
-- 主要在 Windows + Python 3.11+ 环境下开发和测试。
-- 支持“你记”同步和浏览器扩展 ZIP 导入。
-- 支持 SQLite 索引、FTS、n-gram lexical vectors、本地 Ollama semantic vectors。
-- 支持 REST API、MCP stdio、MCP streamable HTTP。
-- 支持 Windows Scheduled Task 每日自动同步。
-- 当前仓库不包含任何真实日记数据。
-- License 暂未选择；如果准备正式开源，建议先添加明确许可证。
+DiaryVault 目前是早期开源版本，主要在 Windows + Python 3.11+ 环境下开发和测试。
+
+已支持：
+
+- 从“你记”同步自己的日记。
+- 从兼容的归档 ZIP 导入日记。
+- 导出 Markdown、图片和备份包。
+- 构建 SQLite 索引、FTS 关键词索引、n-gram lexical vectors。
+- 使用本机 Ollama 构建 semantic vectors。
+- lexical + semantic hybrid retrieval。
+- CLI 检索、REST API、MCP stdio、MCP streamable HTTP。
+- Windows Scheduled Task 每日自动同步。
+
+需要注意：
+
+- “你记”同步依赖当前 Web/API 行为，上游变化可能导致同步逻辑需要维护。
+- 本仓库不包含任何真实日记、图片、数据库、账号或 token。
+- 远程 MCP / API 涉及私人日记，公开到互联网前必须配置 HTTPS、强随机 token 和访问控制。
 
 ## 隐私边界
 
@@ -31,14 +42,14 @@ DiaryVault 是一个面向“你记（Nideriji）”的本地优先日记归档�
 
 ```text
 DiaryVault/    # 本地日记、图片、SQLite 数据库、日志、备份
-.secrets/      # 账号、密码、token、tunnel runtime key
+.secrets/      # 账号、密码、API token、隧道密钥
 .tools/        # 本地下载的 tunnel-client/cloudflared 等工具
 .venv/         # Python 虚拟环境
 .codex/        # 本机 Codex MCP 配置
 .vscode/       # 本机编辑器配置
 ```
 
-MCP 和 REST API 都按只读边界设计，不提供删除日记、修改日记、执行 SQL、执行命令或任意读取文件的工具。
+MCP 和 REST API 都按只读边界设计，不提供删除日记、修改日记、执行 SQL、执行命令或任意读取本机文件的工具。
 
 ## 架构概览
 
@@ -69,7 +80,7 @@ Hybrid retrieval
 ## 功能
 
 - 日记同步：从“你记”拉取自己的日记。
-- ZIP 导入：导入 `nideriji-archive-studio` 导出的归档 ZIP。
+- ZIP 导入：导入兼容的“你记”归档 ZIP。
 - Markdown 导出：按年份生成本地 Markdown 日记文件。
 - 图片归档：保存日记引用的图片。
 - 离线校验：校验日记数量、图片引用、归档结构等。
@@ -84,11 +95,14 @@ Hybrid retrieval
 
 ## 安装
 
+推荐使用 Python 3.11+。
+
 ```powershell
 git clone https://github.com/lemon0000/diaryvault.git
 cd diaryvault
 
 python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -U pip
 .\.venv\Scripts\python.exe -m pip install -e ".[privacy,mcp]"
 ```
 
@@ -119,6 +133,13 @@ NIDERIJI_EMAIL=you@example.com
 NIDERIJI_PASSWORD=replace_me
 ```
 
+也可以使用已有登录 token：
+
+```text
+NIDERIJI_TOKEN=replace_me
+NIDERIJI_USER_ID=replace_me
+```
+
 先同步少量样本并校验：
 
 ```powershell
@@ -136,12 +157,14 @@ NIDERIJI_PASSWORD=replace_me
 
 ## 从 ZIP 导入
 
-如果已经通过浏览器扩展导出了 ZIP：
+如果已经有兼容的“你记”归档 ZIP，可以直接导入本地 vault：
 
 ```powershell
-.\.venv\Scripts\python.exe -m diaryvault import-zip ".\path\to\NiderijiArchive.zip" --vault .\DiaryVault
+.\.venv\Scripts\python.exe -m diaryvault import-zip ".\path\to\nideriji-archive.zip" --vault .\DiaryVault
 .\.venv\Scripts\python.exe -m diaryvault index --vault .\DiaryVault
 ```
+
+相关参考见 [docs/REFERENCE_REVIEW.md](docs/REFERENCE_REVIEW.md)。
 
 ## 检索示例
 
@@ -180,6 +203,8 @@ ollama pull bge-m3
 
 构建完成后，`recall` 和 MCP `recall_memories` 会在 semantic provider 可用时自动使用 hybrid retrieval；如果 Ollama 暂时不可用，会回退到 lexical retrieval。
 
+更多说明见 [docs/SEMANTIC_RETRIEVAL.md](docs/SEMANTIC_RETRIEVAL.md)。
+
 ## REST API
 
 生成本地 API token：
@@ -192,6 +217,12 @@ ollama pull bge-m3
 
 ```powershell
 .\scripts\run-diaryvault-api.ps1
+```
+
+也可以直接使用 CLI：
+
+```powershell
+.\.venv\Scripts\python.exe -m diaryvault serve --vault .\DiaryVault --api-token-file .\.secrets\diaryvault-api-token.txt
 ```
 
 默认地址：
@@ -210,6 +241,7 @@ GET /recall?q=工作压力&limit=10
 GET /recall?q=职业方向迷茫&limit=30&group_by=year
 GET /context?q=某个问题&limit=12
 GET /diaries/{diary_id}
+GET /openapi.json
 ```
 
 更多说明见 [docs/API.md](docs/API.md)。
@@ -220,12 +252,6 @@ GET /diaries/{diary_id}
 
 ```powershell
 .\.venv\Scripts\python.exe -m diaryvault mcp --vault .\DiaryVault
-```
-
-本地 streamable HTTP MCP：
-
-```powershell
-.\scripts\run-diaryvault-mcp-http.ps1
 ```
 
 当前 MCP 工具：
@@ -242,7 +268,21 @@ get_recent_diaries
 
 Codex 的本机配置示例见 [examples/codex-config.toml](examples/codex-config.toml)。真实 `.codex/config.toml` 通常包含本机绝对路径，应保持本地私有。
 
-更多说明见 [docs/MCP.md](docs/MCP.md)。
+本地 streamable HTTP MCP：
+
+```powershell
+.\scripts\run-diaryvault-mcp-http.ps1
+```
+
+默认本地地址：
+
+```text
+http://127.0.0.1:8766/mcp
+```
+
+如果要接入网页端 ChatGPT 或其他远程客户端，需要把 MCP HTTP 服务安全地暴露为 HTTPS，并配置 token、限流和日志。
+
+更多说明见 [docs/MCP.md](docs/MCP.md) 与 [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md)。
 
 ## 每日自动同步
 
@@ -282,23 +322,28 @@ docs/              # detailed operation docs
 examples/          # safe example configs
 ```
 
-## 开源前检查
+## 开发与测试
 
-正式公开仓库前建议运行：
+运行测试：
 
 ```powershell
-git status --short --ignored
-rg --hidden --glob '!.git/**' --glob '!DiaryVault/**' --glob '!.secrets/**' --glob '!.tools/**' --glob '!.venv/**' "sk-[A-Za-z0-9]|tunnel_[A-Za-z0-9]+|Bearer [A-Za-z0-9_-]{20,}"
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
 
-如果曾经把敏感文件提交进 Git 历史，仅从当前版本删除是不够的，需要清理 Git history 后再公开。
+公开或发版前建议检查：
+
+```powershell
+git status --short --ignored
+rg --hidden --glob '!.git/**' --glob '!DiaryVault/**' --glob '!.secrets/**' --glob '!.tools/**' --glob '!.venv/**' "sk-[A-Za-z0-9]|Bearer [A-Za-z0-9_-]{20,}"
+```
+
+如果敏感文件曾经进入 Git history，仅从当前版本删除是不够的，需要先清理历史再公开。
 
 ## Roadmap
 
 - 更完善的增量同步和旧日记变更检测。
-- 更强的时间感知检索，例如按年份或阶段组织回忆。
-- Life Model：从原始日记派生长期人物、事件、关系、价值观和当前状态。
+- 更强的时间感知检索，例如按年份、阶段或主题组织回忆。
+- Life Model：从原始日记派生人物、事件、关系、价值观、长期模式和当前状态。
 - 更完整的远程 MCP 安全方案。
 - 跨平台脚本支持。
 
@@ -310,6 +355,7 @@ DiaryVault is released under the [MIT License](LICENSE).
 
 - [docs/API.md](docs/API.md)
 - [docs/MCP.md](docs/MCP.md)
+- [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md)
 - [docs/SCHEDULED_SYNC.md](docs/SCHEDULED_SYNC.md)
 - [docs/SEMANTIC_RETRIEVAL.md](docs/SEMANTIC_RETRIEVAL.md)
 - [docs/SQLITE_INDEX.md](docs/SQLITE_INDEX.md)
